@@ -35,7 +35,7 @@ article{margin-top:12px;padding:12px 16px;background:#fff0f5;border-radius:14px;
 <label for="message">你的问题</label>
 <textarea id="message" placeholder="把想问的话写在这里…" maxlength="1000"></textarea><button id="submit">提交问题</button>
 <p class="notice" id="status">匿名提交，不需要登录。</p>
-<section class="owner"><button id="owner-login">箱主登录</button><div id="owner-box" hidden><input id="owner-email" type="email" placeholder="箱主邮箱"><button id="send-login">发送登录链接</button><p id="owner-status"></p><div id="inbox"></div></div></section><section id="answers"><h2>公开问答</h2><p id="answers-state">正在加载公开问答…</p><div id="answer-list"></div></section>
+<section class="owner"><button id="owner-login">箱主口令</button><div id="owner-box" hidden><input id="owner-key" type="password" placeholder="输入箱主口令"><button id="unlock-owner">查看提问</button><p id="owner-status"></p><div id="inbox"></div></div></section><section id="answers"><h2>公开问答</h2><p id="answers-state">正在加载公开问答…</p><div id="answer-list"></div></section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -68,10 +68,11 @@ submit.addEventListener('click', async () => {
   if (error) { status.textContent = '提交失败：' + (error.message || '请稍后再试。'); return; }
   message.value = ''; status.textContent = '问题已提交。';
 });
-const ownerLogin=document.querySelector('#owner-login'); const ownerBox=document.querySelector('#owner-box'); const ownerEmail=document.querySelector('#owner-email'); const sendLogin=document.querySelector('#send-login'); const ownerStatus=document.querySelector('#owner-status'); const inbox=document.querySelector('#inbox');
+const ownerLogin=document.querySelector('#owner-login'); const ownerBox=document.querySelector('#owner-box'); const ownerKey=document.querySelector('#owner-key'); const unlockOwner=document.querySelector('#unlock-owner'); const ownerStatus=document.querySelector('#owner-status'); const inbox=document.querySelector('#inbox');
 ownerLogin.addEventListener('click',()=>{ownerBox.hidden=!ownerBox.hidden});
-sendLogin.addEventListener('click',async()=>{const email=ownerEmail.value.trim(); if(!email){ownerStatus.textContent='请输入邮箱。';return} const {error}=await client.auth.signInWithOtp({email,options:{emailRedirectTo:location.href}}); ownerStatus.textContent=error?'发送失败，请稍后再试。':'登录链接已发送，请查看邮箱。';});
-async function loadInbox(){const {data:userData}=await client.auth.getUser(); if(!userData.user){return} ownerStatus.textContent='箱主已登录'; const {data,error}=await client.from('questions').select('id,message,reply,created_at').order('created_at',{ascending:false}).limit(50); if(error){inbox.textContent='提问加载失败。';return} inbox.replaceChildren(...data.map(item=>{const a=document.createElement('article'); const q=document.createElement('div'); q.textContent='匿名提问：'+item.message; a.append(q); const r=document.createElement('textarea'); r.className='reply'; r.placeholder='填写回复'; r.value=item.reply||''; const b=document.createElement('button'); b.textContent='保存回复'; b.onclick=async()=>{b.disabled=true; const {error}=await client.from('questions').update({reply:r.value.trim()||null}).eq('id',item.id); b.disabled=false; ownerStatus.textContent=error?'保存失败。':'回复已保存。'; loadAnswers();}; a.append(r,b); return a}));}
+async function loadInbox(key){const ownerClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{global:{headers:{'x-owner-key':key}}}); ownerStatus.textContent='正在加载提问…'; const {data,error}=await ownerClient.from('questions').select('id,message,reply,created_at').order('created_at',{ascending:false}).limit(50); if(error){ownerStatus.textContent='口令错误或提问暂时无法加载。'; return} ownerStatus.textContent='已解锁箱主查看'; inbox.replaceChildren(...data.map(item=>{const a=document.createElement('article'); const q=document.createElement('div'); q.textContent='匿名提问：'+item.message; a.append(q); const r=document.createElement('textarea'); r.className='reply'; r.placeholder='填写回复'; r.value=item.reply||''; const b=document.createElement('button'); b.textContent='保存回复'; b.onclick=async()=>{b.disabled=true; const {error}=await ownerClient.from('questions').update({reply:r.value.trim()||null}).eq('id',item.id); b.disabled=false; ownerStatus.textContent=error?'保存失败。':'回复已保存。'; loadAnswers();}; a.append(r,b); return a}));}
+unlockOwner.addEventListener('click',()=>{const key=ownerKey.value.trim(); if(key) loadInbox(key);});
+loadAnswers();}; a.append(r,b); return a}));}
 client.auth.onAuthStateChange(()=>loadInbox()); loadInbox();
 loadAnswers();
 </script></body></html>
