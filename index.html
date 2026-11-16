@@ -72,7 +72,5 @@ const ownerLogin=document.querySelector('#owner-login'); const ownerBox=document
 ownerLogin.addEventListener('click',()=>{ownerBox.hidden=!ownerBox.hidden});
 async function loadInbox(key){const ownerClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{global:{headers:{'x-owner-key':key}}}); ownerStatus.textContent='正在加载提问…'; const {data,error}=await ownerClient.from('questions').select('id,message,reply,created_at').order('created_at',{ascending:false}).limit(50); if(error){ownerStatus.textContent='口令错误或提问暂时无法加载。'; return} ownerStatus.textContent='已解锁箱主查看'; inbox.replaceChildren(...data.map(item=>{const a=document.createElement('article'); const q=document.createElement('div'); q.textContent='匿名提问：'+item.message; a.append(q); const r=document.createElement('textarea'); r.className='reply'; r.placeholder='填写回复'; r.value=item.reply||''; const b=document.createElement('button'); b.textContent='保存回复'; b.onclick=async()=>{b.disabled=true; const {error}=await ownerClient.from('questions').update({reply:r.value.trim()||null}).eq('id',item.id); b.disabled=false; ownerStatus.textContent=error?'保存失败。':'回复已保存。'; loadAnswers();}; a.append(r,b); return a}));}
 unlockOwner.addEventListener('click',()=>{const key=ownerKey.value.trim(); if(key) loadInbox(key);});
-loadAnswers();}; a.append(r,b); return a}));}
-client.auth.onAuthStateChange(()=>loadInbox()); loadInbox();
 loadAnswers();
 </script></body></html>
